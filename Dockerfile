@@ -2,7 +2,7 @@ FROM node:20
 
 RUN apt update && apt install -y ffmpeg python3 python3-pip
 
-RUN pip install yt-dlp
+RUN pip3 install --break-system-packages yt-dlp
 
 WORKDIR /app
 
