@@ -22,9 +22,9 @@ app.post("/download", (req, res) => {
     });
   }
 
-  // safer than exec()
   const ytDlp = spawn("yt-dlp", [
     "-j",
+    "--no-playlist",
     videoUrl
   ]);
 
@@ -44,7 +44,7 @@ app.post("/download", (req, res) => {
     if (code !== 0) {
       return res.status(500).json({
         status: "error",
-        error: errorOutput
+        error: errorOutput || "yt-dlp failed"
       });
     }
 
@@ -52,7 +52,37 @@ app.post("/download", (req, res) => {
 
       const data = JSON.parse(output);
 
-      // better media structure for Lovable
+      const media = [];
+
+      // extract formats properly
+      if (data.formats && Array.isArray(data.formats)) {
+
+        data.formats.forEach((format) => {
+
+          // skip broken formats
+          if (!format.url) return;
+
+          // skip thumbnails/images
+          if (format.vcodec === "none" && format.acodec === "none") return;
+
+          media.push({
+            type: format.vcodec !== "none" ? "video" : "audio",
+
+            quality:
+              format.format_note ||
+              (format.height ? `${format.height}p` : "default"),
+
+            ext: format.ext || "mp4",
+
+            filesize: format.filesize || null,
+
+            url: format.url
+          });
+
+        });
+
+      }
+
       res.json({
         status: "success",
 
@@ -64,13 +94,7 @@ app.post("/download", (req, res) => {
 
         uploader: data.uploader || "",
 
-        media: [
-          {
-            type: "video",
-            quality: data.format || "default",
-            url: data.url
-          }
-        ]
+        media
       });
 
     } catch (err) {
@@ -87,5 +111,7 @@ app.post("/download", (req, res) => {
 });
 
 app.listen(process.env.PORT || 3000, () => {
-  console.log("Server running on port " + (process.env.PORT || 3000));
+  console.log(
+    "Server running on port " + (process.env.PORT || 3000)
+  );
 });
